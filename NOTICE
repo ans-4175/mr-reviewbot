@@ -1,0 +1,12 @@
+mr-reviewbot
+Copyright (c) 2026 mr-reviewbot contributors. Licensed under the MIT License (see LICENSE).
+
+This project includes third-party material:
+
+addyosmani/agent-skills
+  Source:  https://github.com/addyosmani/agent-skills
+  Commit:  301b02b12bff98e4688e6984af6556802322bbde
+  Files:   skills/vendor/addyosmani-agent-skills/ (unmodified copies; embedded
+           into the reviewbot binary as reviewer reference material)
+  License: MIT, Copyright (c) 2025 Addy Osmani
+           (full text: skills/vendor/addyosmani-agent-skills/LICENSE)

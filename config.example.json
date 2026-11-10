@@ -1,0 +1,27 @@
+{
+  "forge": {
+    "type": "gitlab",
+    "host": "gitlab.com",
+    "command": "glab"
+  },
+  "agent": {
+    "type": "claude",
+    "command": "claude",
+    "model": "",
+    "max_turns": 40,
+    "timeout_minutes": 20
+  },
+  "max_per_run": 5,
+  "defaults": {
+    "lookback_days": 7,
+    "max_diff_lines": 3000,
+    "language": "en",
+    "skip_labels": ["no-ai-review"]
+  },
+  "repos": [
+    {
+      "path": "your-group/your-project",
+      "enabled": true
+    }
+  ]
+}
