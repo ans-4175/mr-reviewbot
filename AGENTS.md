@@ -21,7 +21,7 @@ internal/render/        comment markdown, i18n (en, id)
 internal/queue/         one-file-per-MR queue, flock worker lock, parking after 3 failures
 prompts/system.md       reviewer instructions (embedded)
 skills/review-mr/       chat-trigger skill (embedded; `reviewbot skill install`)
-skills/vendor/          pinned third-party skills (embedded, unmodified, see NOTICE)
+skills/thirdparty/      pinned third-party skills (embedded, unmodified, see NOTICE)
 scripts/install.sh      release installer
 ```
 
@@ -33,7 +33,7 @@ scripts/install.sh      release installer
 - **Behaviour changes need tests**, especially in `state`, `gitops`, `render`, `queue` and `app` (the end-to-end test in `internal/app/app_test.go` uses a fake forge and agent with a local git remote).
 - **New user-facing text goes into every language** in `internal/render/i18n.go`; `TestEveryLanguageCoversEveryKey` enforces the keys.
 - Keep code comments short (why, not what).
-- Vendored skills stay unmodified; update by bumping the pinned commit in `VENDORED.md` and `NOTICE`.
+- Third-party skills stay unmodified; update by bumping the pinned commit in `VENDORED.md` and `NOTICE`. Never name a directory `vendor`: Go drops it from module zips and `go install` breaks.
 
 ## Checks
 

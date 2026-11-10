@@ -56,14 +56,14 @@ const Schema = `{"type":"object","required":["verdict","verdict_reason","summary
 "resolved_since_last":{"type":"array","items":{"type":"string"}},
 "coverage_notes":{"type":"string"},"steering_prompt":{"type":"string"}}}`
 
-const vendor = "skills/vendor/addyosmani-agent-skills/"
+const thirdParty = "skills/thirdparty/addyosmani-agent-skills/"
 
 // security-checklist is the only reference small enough to embed.
 var skillFiles = []struct{ path, title string }{
-	{vendor + "skills/code-review-and-quality/SKILL.md", "code-review-and-quality"},
-	{vendor + "skills/code-simplification/SKILL.md", "code-simplification"},
-	{vendor + "skills/security-and-hardening/SKILL.md", "security-and-hardening"},
-	{vendor + "references/security-checklist.md", "security-checklist"},
+	{thirdParty + "skills/code-review-and-quality/SKILL.md", "code-review-and-quality"},
+	{thirdParty + "skills/code-simplification/SKILL.md", "code-simplification"},
+	{thirdParty + "skills/security-and-hardening/SKILL.md", "security-and-hardening"},
+	{thirdParty + "references/security-checklist.md", "security-checklist"},
 }
 
 var frontmatterRe = regexp.MustCompile(`(?s)\A---\n.*?\n---\n`)
