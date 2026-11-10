@@ -35,7 +35,10 @@ func TestParseErrors(t *testing.T) {
 
 // The read-only guarantee lives in these flags; a refactor must not drop them.
 func TestArgsAreReadOnly(t *testing.T) {
-	args := NewClaude(Config{Model: "m"}).Args(Request{Task: "t", SystemFile: "s", Schema: "{}"})
+	args := NewClaude(Config{Model: "m"}).Args(Request{Task: "THE-TASK", SystemFile: "s", Schema: "{}"})
+	if slices.Contains(args, "THE-TASK") {
+		t.Error("the task must come on stdin, not argv")
+	}
 	joined := strings.Join(args, " ")
 	for _, want := range []string{"--tools Read,Grep,Glob", "--permission-mode dontAsk", "--strict-mcp-config", "--setting-sources user", "--no-session-persistence", "--model m", "--max-turns 40"} {
 		if !strings.Contains(joined, want) {

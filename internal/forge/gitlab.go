@@ -19,6 +19,7 @@ type GitLab struct {
 	Host    string
 	Command string
 	user    *User
+	urlRe   *regexp.Regexp
 }
 
 func NewGitLab(host, command string) *GitLab {
@@ -28,7 +29,7 @@ func NewGitLab(host, command string) *GitLab {
 	if command == "" {
 		command = "glab"
 	}
-	return &GitLab{Host: host, Command: command}
+	return &GitLab{Host: host, Command: command, urlRe: regexp.MustCompile(`^https?://` + regexp.QuoteMeta(host) + `/(.+?)/-/merge_requests/(\d+)`)}
 }
 
 func (g *GitLab) Name() string { return "gitlab" }
@@ -130,8 +131,7 @@ func (g *GitLab) CredentialHelper() string { return "!" + g.Command + " auth git
 func (g *GitLab) HeadRef(iid int) string { return fmt.Sprintf("refs/merge-requests/%d/head", iid) }
 
 func (g *GitLab) ParseURL(url string) (string, int, bool) {
-	re := regexp.MustCompile(`^https?://` + regexp.QuoteMeta(g.Host) + `/(.+?)/-/merge_requests/(\d+)`)
-	m := re.FindStringSubmatch(strings.TrimSpace(url))
+	m := g.urlRe.FindStringSubmatch(strings.TrimSpace(url))
 	if m == nil {
 		return "", 0, false
 	}

@@ -1,13 +1,9 @@
 package agent
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"os/exec"
-	"regexp"
 	"strings"
 )
 
@@ -15,9 +11,7 @@ import (
 type Claude struct{ cfg Config }
 
 func NewClaude(c Config) *Claude {
-	if c.Command == "" {
-		c.Command = "claude"
-	}
+	c.Command = orDefault(c.Command, "claude")
 	if c.MaxTurns == 0 {
 		c.MaxTurns = 40
 	}
@@ -30,7 +24,7 @@ func (c *Claude) Version(ctx context.Context) (string, error) { return version(c
 
 func (c *Claude) Args(req Request) []string {
 	args := []string{
-		"-p", req.Task,
+		"-p", // the prompt comes on stdin: as one argv string it would hit Linux's 128 KiB per-argument limit
 		"--output-format", "json",
 		"--json-schema", req.Schema,
 		"--append-system-prompt-file", req.SystemFile,
@@ -50,23 +44,12 @@ func (c *Claude) Args(req Request) []string {
 }
 
 func (c *Claude) Review(ctx context.Context, req Request) (*Output, error) {
-	if c.cfg.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, c.cfg.Timeout)
-		defer cancel()
+	out, err := run(ctx, c.cfg.Timeout, req.Dir, []string{"CLAUDE_CODE_DISABLE_CLAUDE_MDS=1"}, strings.NewReader(req.Task), c.cfg.Command, c.Args(req)...)
+	if err != nil {
+		return nil, err
 	}
-	cmd := exec.CommandContext(ctx, c.cfg.Command, c.Args(req)...)
-	cmd.Dir = req.Dir
-	cmd.Env = append(os.Environ(), "CLAUDE_CODE_DISABLE_CLAUDE_MDS=1")
-	var out, errb bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &out, &errb
-	if err := cmd.Run(); err != nil && out.Len() == 0 {
-		return nil, fmt.Errorf("claude failed: %v: %.400s", err, errb.String())
-	}
-	return ParseClaude(out.Bytes())
+	return ParseClaude(out)
 }
-
-var fenceRe = regexp.MustCompile("(?s)^```(?:json)?\\s*(.*?)\\s*```$")
 
 // ParseClaude unwraps the `--output-format json` envelope; falls back to JSON in the text result.
 func ParseClaude(raw []byte) (*Output, error) {
@@ -85,11 +68,7 @@ func ParseClaude(raw []byte) (*Output, error) {
 	}
 	payload := []byte(env.Structured)
 	if len(payload) == 0 || string(payload) == "null" {
-		text := strings.TrimSpace(env.Result)
-		if m := fenceRe.FindStringSubmatch(text); m != nil {
-			text = m[1]
-		}
-		payload = []byte(text)
+		payload = ExtractJSON(env.Result)
 	}
 	return &Output{JSON: payload, CostUSD: env.Cost, Turns: env.Turns}, nil
 }

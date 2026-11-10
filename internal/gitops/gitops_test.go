@@ -111,3 +111,27 @@ func TestDiffCappedPerFile(t *testing.T) {
 		t.Fatalf("%+v %v", p, err)
 	}
 }
+
+func TestWorktreeChecksOutSymlinksAsPlainFiles(t *testing.T) {
+	r, _, gd := newRepo(t)
+	secret := filepath.Join(t.TempDir(), "secret")
+	if err := os.MkdirAll(secret, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secret, filepath.Join(r.dir, "evil")); err != nil {
+		t.Fatal(err)
+	}
+	r.sh("add", "-A")
+	r.sh("commit", "-q", "-m", "add symlink")
+	head := r.sh("rev-parse", "HEAD")
+	dest := filepath.Join(t.TempDir(), "wt")
+	cleanup, err := Worktree(gd, head, dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	fi, err := os.Lstat(filepath.Join(dest, "evil"))
+	if err != nil || fi.Mode()&os.ModeSymlink != 0 || !fi.Mode().IsRegular() {
+		t.Fatalf("want a plain file, got %v %v", fi.Mode(), err)
+	}
+}

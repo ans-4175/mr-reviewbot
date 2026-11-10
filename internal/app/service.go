@@ -126,7 +126,7 @@ func runService(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&s.Label, "label", "mr-reviewbot", "launchd label / systemd unit name")
 	fs.StringVar(&s.Config, "config", config.DefaultPath(), "config file the scheduler uses")
 	fs.StringVar(&s.State, "state", config.DefaultStateDir(), "state dir the scheduler uses")
-	fs.DurationVar(&s.Interval, "interval", 30*time.Minute, "time between the end of one run and the start of the next")
+	fs.DurationVar(&s.Interval, "interval", 0, "time between the end of one run and the start of the next (default: poll_interval_minutes from the config, else 30m)")
 	fs.StringVar(&s.Binary, "binary", "", "reviewbot binary to run (default: this one)")
 	if _, err := parse(fs, args[1:]); err != nil {
 		return 2
@@ -134,6 +134,13 @@ func runService(args []string, stdout, stderr io.Writer) int {
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		fmt.Fprintf(stderr, "error: no scheduler support for %s; run `reviewbot poll` from your own scheduler\n", runtime.GOOS)
 		return 2
+	}
+	cfg, cfgErr := config.Load(s.Config)
+	if s.Interval == 0 {
+		s.Interval = 30 * time.Minute
+		if cfgErr == nil {
+			s.Interval = cfg.PollInterval
+		}
 	}
 	if s.Interval < time.Minute {
 		fmt.Fprintln(stderr, "error: --interval must be at least 1m")
@@ -161,8 +168,8 @@ func runService(args []string, stdout, stderr io.Writer) int {
 		}
 		return 0
 	case "install":
-		if _, err := config.Load(s.Config); err != nil {
-			fmt.Fprintln(stderr, "error: the scheduler would fail:", err)
+		if cfgErr != nil {
+			fmt.Fprintln(stderr, "error: the scheduler would fail:", cfgErr)
 			return 2
 		}
 		if err := os.MkdirAll(filepath.Join(s.State, "log"), 0o755); err != nil {

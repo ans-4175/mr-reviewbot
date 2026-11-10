@@ -45,11 +45,12 @@ type Review struct {
 	Stats             Stats     `json:"-"`
 }
 
-const Schema = `{"type":"object","required":["verdict","verdict_reason","summary","findings","resolved_since_last","coverage_notes","steering_prompt"],
+const Schema = `{"type":"object","additionalProperties":false,
+"required":["verdict","verdict_reason","summary","findings","resolved_since_last","coverage_notes","steering_prompt"],
 "properties":{
 "verdict":{"type":"string","enum":["safe_to_merge","needs_changes","unsafe"]},
 "verdict_reason":{"type":"string"},"summary":{"type":"string"},
-"findings":{"type":"array","items":{"type":"object","required":["severity","axis","file","line","title","detail","suggestion"],"properties":{
+"findings":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["severity","axis","file","line","title","detail","suggestion"],"properties":{
 "severity":{"type":"string","enum":["critical","required","consider","nit","fyi"]},
 "axis":{"type":"string","enum":["correctness","readability","architecture","security","performance"]},
 "file":{"type":"string"},"line":{"type":["integer","null"]},"title":{"type":"string"},"detail":{"type":"string"},"suggestion":{"type":"string"}}}},

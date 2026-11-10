@@ -43,11 +43,22 @@ type fakeAgent struct {
 	answer string
 	tasks  []string
 	dirs   []string
+	leaky  bool // reads outside its checkout during the probe
+	probes int
 }
 
 func (a *fakeAgent) Name() string                            { return "fake" }
 func (a *fakeAgent) Version(context.Context) (string, error) { return "fake 1.0", nil }
 func (a *fakeAgent) Review(_ context.Context, r agent.Request) (*agent.Output, error) {
+	if in, err := os.ReadFile(filepath.Join(r.Dir, "inside.txt")); err == nil { // the isolation probe
+		a.probes++
+		text := string(in)
+		if a.leaky {
+			out, _ := os.ReadFile(filepath.Join(r.Dir, "..", "outside.txt"))
+			text += " " + string(out)
+		}
+		return &agent.Output{JSON: []byte(`{"summary":"` + text + `"}`)}, nil
+	}
 	a.tasks, a.dirs = append(a.tasks, r.Task), append(a.dirs, r.Dir)
 	if _, err := os.Stat(filepath.Join(r.Dir, "feature.txt")); err != nil {
 		return nil, fmt.Errorf("worktree missing the MR head: %v", err)
@@ -184,5 +195,38 @@ func TestBadAgentAnswerFailsAndStaysQueued(t *testing.T) {
 	pending, _ := e.q.Pending()
 	if len(ff.notes) != 0 || len(pending) != 1 || pending[0].Attempts != 1 {
 		t.Errorf("failed job must stay queued with one attempt: %+v", pending)
+	}
+}
+
+func TestIsolationProbeRunsOnceThenStamps(t *testing.T) {
+	e, ff, fa, _, logs := setup(t, "en")
+	if code := e.poll(false, 5); code != 0 || len(ff.notes) != 1 {
+		t.Fatalf("exit %d\n%s", code, logs)
+	}
+	if fa.probes != 1 {
+		t.Fatalf("want one probe before the first review, got %d", fa.probes)
+	}
+	e.isolated = false // a new process: the stamp must spare a second probe
+	if err := e.ensureIsolated(context.Background()); err != nil || fa.probes != 1 {
+		t.Errorf("stamp ignored: probes=%d err=%v", fa.probes, err)
+	}
+}
+
+func TestLeakyAgentIsRefusedAndJobStaysQueued(t *testing.T) {
+	e, ff, fa, _, _ := setup(t, "en")
+	fa.leaky = true
+	for run := 0; run < 4; run++ { // more runs than MaxAttempts: a host problem must never park an MR
+		e.isolated, e.isoErr = false, nil // each run is a new process
+		if code := e.poll(false, 5); code != 1 {
+			t.Fatalf("run %d: want exit 1, got %d", run, code)
+		}
+	}
+	pending, _ := e.q.Pending()
+	if len(ff.notes) != 0 || len(fa.tasks) != 0 || len(pending) != 1 || pending[0].Attempts != 0 || len(e.q.FailedJobs()) != 0 {
+		t.Errorf("leaky agent must never review nor charge the job: notes=%d tasks=%d pending=%+v failed=%d",
+			len(ff.notes), len(fa.tasks), pending, len(e.q.FailedJobs()))
+	}
+	if fa.probes != 4 {
+		t.Errorf("want one probe per run, got %d", fa.probes)
 	}
 }

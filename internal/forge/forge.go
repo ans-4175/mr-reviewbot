@@ -59,6 +59,8 @@ func New(c Config) (Forge, error) {
 	switch c.Type {
 	case "gitlab":
 		return NewGitLab(c.Host, c.Command), nil
+	case "github":
+		return NewGitHub(c.Host, c.Command), nil
 	}
-	return nil, fmt.Errorf("unsupported forge %q (supported: gitlab)", c.Type)
+	return nil, fmt.Errorf("unsupported forge %q (supported: gitlab, github)", c.Type)
 }
