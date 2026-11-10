@@ -15,7 +15,7 @@ reviewbot service install     # and go make coffee
 
 Because most of them want a server, a webhook, an API key of their own, and a database to remember what they already said. This one wants none of that.
 
-- **It moves into the house you already have.** No new accounts, no secrets to paste. It uses the forge CLI you are already logged into (`glab` or `gh`) and the coding agent you already pay for (`claude`, `pi`, with `codex` and `opencode` waiting at the door). Install the binary, write one config file, done. An agent can do the whole setup by following [SETUP.md](SETUP.md).
+- **It moves into the house you already have.** No new accounts, no secrets to paste. It uses the forge CLI you are already logged into (`glab` or `gh`) and the coding agent you already pay for (`claude`, `pi` or `codex`, with `opencode` waiting at the door). Install the binary, write one config file, done. An agent can do the whole setup by following [SETUP.md](SETUP.md).
 - **It gives a verdict, not a vibe.** ✅ Safe to merge, 🟡 Needs changes, or 🔴 Not safe to merge, and the verdict is never rosier than its own findings.
 - **It writes the next prompt for you.** Each comment ends with a paste-ready task list for your coding agent: what is wrong, where, what "fixed" looks like, how to check it. Humans steer, agents iterate, the bot reviews the next push.
 - **It has no database, and no amnesia.** State is the commit sha and the comments already on the MR. Every review ends with an invisible `<!-- mr-reviewbot v1 sha=… -->` marker. Next run, the bot finds its own last marker, diffs from that sha to the new head, and checks whether its earlier "must fix" items got fixed. Wipe the host, reinstall, and it picks up exactly where it stopped.
@@ -89,14 +89,14 @@ scheduler (poll_interval_minutes)        chat agent (skill review-mr)
 | GitHub via `gh` (github.com or Enterprise) | ✅ reviews its own PRs |
 | Claude Code (`claude`) | ✅ isolation probe passes |
 | pi (`pi`) | ✅ isolation probe passes (with a bundled guard extension) |
-| Codex (`codex`) | 🧪 adapter ready, needs a real-host check: [#2](https://github.com/ans-4175/mr-reviewbot/issues/2) |
+| Codex (`codex`) | ✅ isolation probe passes on macOS (with a read-only permission profile); Linux check welcome: [#2](https://github.com/ans-4175/mr-reviewbot/issues/2) |
 | opencode (`opencode`) | 🧪 adapter ready, needs a real-host check: [#3](https://github.com/ans-4175/mr-reviewbot/issues/3) |
 
 "Adapter ready" is not a polite word for "unsafe": reviewbot will not review with an agent until the isolation probe passes on your host.
 
 ## Security, or: what a crafted MR can and cannot do
 
-- **The reviewer only reads, and that is tested, not assumed.** Before reviewing, reviewbot runs a probe (re-run whenever the agent, its version or the model changes, and at least daily): the agent must read a file in the checkout and fail to read a file, a symlink or a symlinked directory outside it. Fail the probe and no review runs; the jobs stay queued, nothing gets parked. Each adapter also pins read-only settings: Claude runs with `--tools Read,Grep,Glob` and `--permission-mode dontAsk`, without MCP servers, slash commands, the repo's `.claude/settings`, hooks, or auto-loaded `CLAUDE.md`. pi runs with read/search tools only, behind a guard extension.
+- **The reviewer only reads, and that is tested, not assumed.** Before reviewing, reviewbot runs a probe (re-run whenever the agent, its version or the model changes, and at least daily): the agent must read a file in the checkout and fail to read a file, a symlink or a symlinked directory outside it. Fail the probe and no review runs; the jobs stay queued, nothing gets parked. Each adapter also pins read-only settings: Claude runs with `--tools Read,Grep,Glob` and `--permission-mode dontAsk`, without MCP servers, slash commands, the repo's `.claude/settings`, hooks, or auto-loaded `CLAUDE.md`. pi runs with read/search tools only, behind a guard extension. Codex runs under a permission profile that can read only the checkout and system files.
 - **The forge token never reaches the agent.** The binary posts the comment; the agent only returns JSON.
 - **MR content is untrusted.** The prompt forbids following instructions found in the MR, its comments or its files, and asks the reviewer to flag attempts. This lowers the risk; it does not remove it. A clever MR can still sway a verdict, which is why humans merge and the bot never approves or merges anything.
 - **GitLab quick actions are defused.** Comment lines starting with `/` are neutralized, so a finding can't `/merge` anything.

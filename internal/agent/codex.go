@@ -7,8 +7,10 @@ import (
 	"strings"
 )
 
-// Codex runs `codex exec` in the read-only sandbox, without the repo's AGENTS.md, MCP servers, web search or exec rules.
+// Codex runs `codex exec` under a read-only permission profile, without the repo's AGENTS.md, MCP servers, web search or exec rules.
 type Codex struct{ cfg Config }
+
+const codexReadProfile = `permissions.reviewbot.filesystem={":minimal"="read",":slash_tmp"="deny",":tmpdir"="deny",":workspace_roots"="read"}`
 
 func NewCodex(c Config) *Codex {
 	c.Command = orDefault(c.Command, "codex")
@@ -21,7 +23,10 @@ func (c *Codex) Version(ctx context.Context) (string, error) { return version(ct
 
 func (c *Codex) Args(req Request, schemaFile, lastFile string) []string {
 	args := []string{"exec",
-		"--sandbox", "read-only",
+		// The legacy read-only sandbox reads the whole disk; this profile reads the checkout and
+		// macOS system defaults only, with /tmp and $TMPDIR (other checkouts) denied.
+		"-c", `default_permissions="reviewbot"`,
+		"-c", codexReadProfile,
 		"--ephemeral",
 		"--skip-git-repo-check",
 		"--ignore-rules",

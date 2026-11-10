@@ -17,7 +17,7 @@ You can set up either one, or both on the same host.
 | **GitHub** via `gh` (github.com or Enterprise) | supported; reviews this repo's own PRs |
 | **Claude Code** (`claude`) | supported; isolation probe passes |
 | **pi** (`pi`) | supported; pi's tools have no path restriction of their own, so reviewbot loads a bundled guard extension that blocks any read/grep/find/ls outside the checkout (fails closed); isolation probe passes |
-| **Codex** (`codex`) | adapter ready, not yet verified on a real host ([#2](https://github.com/ans-4175/mr-reviewbot/issues/2)). Codex's read-only sandbox blocks writes and network, not reads, so the probe may refuse it |
+| **Codex** (`codex`) | supported on macOS (≥ 0.167); Codex's legacy read-only sandbox can read the whole disk, so reviewbot runs it under a permission profile that reads only the checkout and system files, with `/tmp` and `$TMPDIR` denied; isolation probe passes. Linux not yet verified ([#2](https://github.com/ans-4175/mr-reviewbot/issues/2)) |
 | **opencode** (`opencode`) | adapter ready, not yet verified on a real host ([#3](https://github.com/ans-4175/mr-reviewbot/issues/3)) |
 
 Whatever agent you pick, reviewbot runs the isolation probe before the first review and again whenever the agent's version or model changes (and at least daily). If the agent can read outside the MR checkout, no review runs and the job stays queued. "Adapter ready" means it will work as soon as the probe passes on your host.
@@ -153,3 +153,10 @@ Check from the chat agent: ask it to review an MR with `--dry-run`. It should re
 - `refusing to review: … isolation check failed` → the agent could read outside the checkout (or could not read at all). Run `reviewbot doctor --probe` for details; check the agent's own settings and version.
 - `<agent> failed` / `no valid review JSON` → run the agent by hand as the same user (e.g. `claude -p "say ok"`); check the model or router behind it. The job retries on the next run.
 - Exit `3` → another run holds the worker lock; the MR stays queued.
+- The state dir must not be under `/tmp` or `$TMPDIR` when the agent is Codex: its profile denies those, so it could not read its own checkout (the probe says "did not read the checkout").
+- Codex: `timed out negotiating with the code-mode host` → Codex's helper binary `codex-code-mode-host` never starts (seen on a macOS host where the Homebrew cask copy hangs at launch, over SSH and in the GUI alike, even with the quarantine flag removed). Check with `codex-code-mode-host --help`: it must print usage within a second. If the Codex desktop app's daemon is installed, its own copy under `~/.codex/packages/app-server-daemon/releases/<version>/bin/` usually works; point `agent.command` at a small wrapper that runs the newest one:
+  ```sh
+  #!/bin/sh
+  d=$(ls -d "$HOME"/.codex/packages/app-server-daemon/releases/*/bin | sort -V | tail -1)
+  exec "$d/codex" "$@"
+  ```

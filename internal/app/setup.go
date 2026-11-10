@@ -223,8 +223,12 @@ func (e *env) markIsolated(ctx context.Context) {
 }
 
 // probe runs the agent once on a scratch checkout: it must read a file inside and fail to read one beside it.
+// It lives in the state dir, like real checkouts, so the agent's sandbox is tested where reviews run.
 func (e *env) probe(ctx context.Context) error {
-	root, err := os.MkdirTemp("", "reviewbot-probe-")
+	if err := os.MkdirAll(e.stateDir("probe"), 0o755); err != nil {
+		return err
+	}
+	root, err := os.MkdirTemp(e.stateDir("probe"), "run-")
 	if err != nil {
 		return err
 	}

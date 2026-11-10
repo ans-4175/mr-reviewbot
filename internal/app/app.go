@@ -375,7 +375,11 @@ func (e *env) drain(jobs []*queue.Job, limit int, dry bool) int {
 		if res.Status != "skipped" {
 			reviewed++
 		}
-		e.logf("%s!%d → %s %s", res.Project, res.IID, res.Status, res.Reason)
+		if res.Verdict != "" {
+			e.logf("%s!%d → %s %s, %d finding(s) %s", res.Project, res.IID, res.Status, res.Verdict, res.Findings, res.Reason)
+		} else {
+			e.logf("%s!%d → %s %s", res.Project, res.IID, res.Status, res.Reason)
+		}
 		results = append(results, res)
 	}
 	if e.json {

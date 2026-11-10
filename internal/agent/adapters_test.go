@@ -24,10 +24,13 @@ func has(t *testing.T, name string, args []string, want ...string) {
 
 func TestCodexArgsAreReadOnly(t *testing.T) {
 	args := NewCodex(Config{Model: "m"}).Args(Request{Dir: "/w"}, "/s.json", "/l.txt")
-	has(t, "codex", args, "exec", "--sandbox read-only", "--ephemeral", "--ignore-rules", `approval_policy="never"`,
+	has(t, "codex", args, "exec", `default_permissions="reviewbot"`, codexReadProfile, "--ephemeral", "--ignore-rules", `approval_policy="never"`,
 		"project_doc_max_bytes=0", "mcp_servers={}", "-C /w", "--output-schema /s.json", "-o /l.txt", "-m m")
 	if args[len(args)-1] != "-" {
 		t.Error("prompt must come from stdin")
+	}
+	if slices.Contains(args, "--sandbox") || strings.Contains(codexReadProfile, `":root"`) {
+		t.Error("codex must not fall back to a sandbox that reads the whole disk")
 	}
 }
 
