@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"mr-reviewbot/internal/config"
+	"github.com/ans-4175/mr-reviewbot/internal/config"
 )
 
 type service struct {

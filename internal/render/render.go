@@ -8,8 +8,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"mr-reviewbot/internal/review"
-	"mr-reviewbot/internal/state"
+	"github.com/ans-4175/mr-reviewbot/internal/review"
+	"github.com/ans-4175/mr-reviewbot/internal/state"
 )
 
 const maxBody = 60000

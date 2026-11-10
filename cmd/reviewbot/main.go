@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"mr-reviewbot/internal/app"
+	"github.com/ans-4175/mr-reviewbot/internal/app"
 )
 
 func main() {

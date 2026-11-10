@@ -26,7 +26,7 @@ glab auth login --hostname git.example.org   # self-hosted
 From a release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<owner>/mr-reviewbot/main/scripts/install.sh | REVIEWBOT_REPO=<owner>/mr-reviewbot sh
+curl -fsSL https://raw.githubusercontent.com/ans-4175/mr-reviewbot/main/scripts/install.sh | sh
 ```
 
 This downloads the archive for your OS/CPU, verifies its SHA-256 against `checksums.txt`, and installs `reviewbot` to `~/.local/bin` (`REVIEWBOT_BIN_DIR` to change it, `REVIEWBOT_VERSION=v0.1.0` to pin).
@@ -34,7 +34,9 @@ This downloads the archive for your OS/CPU, verifies its SHA-256 against `checks
 Or from source (Go ≥ 1.22):
 
 ```bash
-git clone <repo-url> mr-reviewbot && cd mr-reviewbot
+go install github.com/ans-4175/mr-reviewbot/cmd/reviewbot@latest     # into $(go env GOPATH)/bin
+# or
+git clone https://github.com/ans-4175/mr-reviewbot && cd mr-reviewbot
 make build && install -m 0755 bin/reviewbot ~/.local/bin/
 ```
 

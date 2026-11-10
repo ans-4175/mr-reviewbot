@@ -9,8 +9,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"mr-reviewbot/internal/forge"
-	"mr-reviewbot/internal/gitops"
+	"github.com/ans-4175/mr-reviewbot/internal/forge"
+	"github.com/ans-4175/mr-reviewbot/internal/gitops"
 )
 
 var (

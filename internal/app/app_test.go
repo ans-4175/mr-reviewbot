@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"mr-reviewbot/internal/agent"
-	"mr-reviewbot/internal/config"
-	"mr-reviewbot/internal/forge"
-	"mr-reviewbot/internal/queue"
-	"mr-reviewbot/internal/state"
+	"github.com/ans-4175/mr-reviewbot/internal/agent"
+	"github.com/ans-4175/mr-reviewbot/internal/config"
+	"github.com/ans-4175/mr-reviewbot/internal/forge"
+	"github.com/ans-4175/mr-reviewbot/internal/queue"
+	"github.com/ans-4175/mr-reviewbot/internal/state"
 )
 
 // fakeForge serves one MR from a local bare repo and records posted notes.

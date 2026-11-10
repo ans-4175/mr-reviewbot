@@ -1,5 +1,5 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-LDFLAGS := -s -w -X mr-reviewbot/internal/app.Version=$(VERSION)
+LDFLAGS := -s -w -X github.com/ans-4175/mr-reviewbot/internal/app.Version=$(VERSION)
 PLATFORMS := darwin/arm64 darwin/amd64 linux/arm64 linux/amd64
 
 .PHONY: build test vet dist release clean

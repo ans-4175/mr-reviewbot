@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"mr-reviewbot/internal/config"
+	"github.com/ans-4175/mr-reviewbot/internal/config"
 )
 
 func TestInitWritesValidConfigAndRefusesOverwrite(t *testing.T) {

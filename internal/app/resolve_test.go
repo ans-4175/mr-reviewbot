@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"mr-reviewbot/internal/config"
-	"mr-reviewbot/internal/forge"
+	"github.com/ans-4175/mr-reviewbot/internal/config"
+	"github.com/ans-4175/mr-reviewbot/internal/forge"
 )
 
 func cfgOf(t *testing.T, paths ...string) *config.Config {

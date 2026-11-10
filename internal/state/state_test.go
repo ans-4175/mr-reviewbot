@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"mr-reviewbot/internal/config"
-	"mr-reviewbot/internal/forge"
+	"github.com/ans-4175/mr-reviewbot/internal/config"
+	"github.com/ans-4175/mr-reviewbot/internal/forge"
 )
 
 const bot = 7

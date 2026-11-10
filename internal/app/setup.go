@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"mr-reviewbot/internal/agent"
-	"mr-reviewbot/internal/config"
-	"mr-reviewbot/internal/forge"
-	"mr-reviewbot/internal/gitops"
-	"mr-reviewbot/internal/review"
+	"github.com/ans-4175/mr-reviewbot/internal/agent"
+	"github.com/ans-4175/mr-reviewbot/internal/config"
+	"github.com/ans-4175/mr-reviewbot/internal/forge"
+	"github.com/ans-4175/mr-reviewbot/internal/gitops"
+	"github.com/ans-4175/mr-reviewbot/internal/review"
 )
 
 type multi []string

@@ -6,8 +6,8 @@ import (
 	"testing/fstest"
 	"unicode/utf8"
 
-	"mr-reviewbot/internal/forge"
-	"mr-reviewbot/internal/gitops"
+	"github.com/ans-4175/mr-reviewbot/internal/forge"
+	"github.com/ans-4175/mr-reviewbot/internal/gitops"
 )
 
 const good = `{"verdict":"safe_to_merge","verdict_reason":"r","summary":"s","findings":[],"resolved_since_last":[],"coverage_notes":"","steering_prompt":"p"}`

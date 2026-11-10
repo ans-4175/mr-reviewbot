@@ -10,8 +10,8 @@ import (
 	"regexp"
 	"time"
 
-	"mr-reviewbot/internal/agent"
-	"mr-reviewbot/internal/forge"
+	"github.com/ans-4175/mr-reviewbot/internal/agent"
+	"github.com/ans-4175/mr-reviewbot/internal/forge"
 )
 
 var pathRe = regexp.MustCompile(`^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)+$`)

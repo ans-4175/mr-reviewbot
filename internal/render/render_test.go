@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"mr-reviewbot/internal/review"
+	"github.com/ans-4175/mr-reviewbot/internal/review"
 )
 
 var markerRe = regexp.MustCompile(`<!-- mr-reviewbot v1 sha=([0-9a-f]{40}) -->`)

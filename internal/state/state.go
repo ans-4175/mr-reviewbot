@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"time"
 
-	"mr-reviewbot/internal/config"
-	"mr-reviewbot/internal/forge"
+	"github.com/ans-4175/mr-reviewbot/internal/config"
+	"github.com/ans-4175/mr-reviewbot/internal/forge"
 )
 
 // The marker lives in the bot's own MR note, so "last reviewed" survives host loss.

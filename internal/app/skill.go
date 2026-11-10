@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	reviewbot "mr-reviewbot"
+	reviewbot "github.com/ans-4175/mr-reviewbot"
 )
 
 // runSkill copies the embedded review-mr skill for installs that have only the binary.

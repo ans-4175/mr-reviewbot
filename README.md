@@ -11,7 +11,7 @@ It does not ship its own credentials or model client. It drives the tools alread
 Setup is in [SETUP.md](SETUP.md). The short version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<owner>/mr-reviewbot/main/scripts/install.sh | REVIEWBOT_REPO=<owner>/mr-reviewbot sh
+curl -fsSL https://raw.githubusercontent.com/ans-4175/mr-reviewbot/main/scripts/install.sh | sh
 reviewbot init --repo your-group/your-project
 reviewbot doctor --probe
 reviewbot service install

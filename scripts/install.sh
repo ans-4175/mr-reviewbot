@@ -1,9 +1,9 @@
 #!/bin/sh
 # Installs the reviewbot binary from a release. Setup itself is `reviewbot init` (see SETUP.md).
 #
-#   curl -fsSL https://raw.githubusercontent.com/<owner>/mr-reviewbot/main/scripts/install.sh | REVIEWBOT_REPO=<owner>/mr-reviewbot sh
+#   curl -fsSL https://raw.githubusercontent.com/ans-4175/mr-reviewbot/main/scripts/install.sh | sh
 #
-# Env: REVIEWBOT_REPO     GitHub owner/repo to download from
+# Env: REVIEWBOT_REPO     GitHub owner/repo to download from (default: ans-4175/mr-reviewbot)
 #      REVIEWBOT_VERSION  release tag (default: latest)
 #      REVIEWBOT_BIN_DIR  install dir (default: ~/.local/bin)
 #      REVIEWBOT_BASE_URL download from here instead of GitHub (a mirror, or file:///path/to/dist)
@@ -23,17 +23,13 @@ case "$(uname -m)" in
   *) echo "unsupported CPU: $(uname -m)" >&2; exit 1 ;;
 esac
 
+repo="${REVIEWBOT_REPO:-ans-4175/mr-reviewbot}"
 if [ -n "${REVIEWBOT_BASE_URL:-}" ]; then
   base="$REVIEWBOT_BASE_URL"
-elif [ -n "${REVIEWBOT_REPO:-}" ]; then
-  if [ "$version" = latest ]; then
-    base="https://github.com/$REVIEWBOT_REPO/releases/latest/download"
-  else
-    base="https://github.com/$REVIEWBOT_REPO/releases/download/$version"
-  fi
+elif [ "$version" = latest ]; then
+  base="https://github.com/$repo/releases/latest/download"
 else
-  echo "set REVIEWBOT_REPO=<owner>/mr-reviewbot (or REVIEWBOT_BASE_URL)" >&2
-  exit 1
+  base="https://github.com/$repo/releases/download/$version"
 fi
 
 name="mr-reviewbot_${os}_${arch}"
