@@ -32,10 +32,10 @@ func TestCodexArgsAreReadOnly(t *testing.T) {
 }
 
 func TestPiArgsAreReadOnly(t *testing.T) {
-	args := NewPi(Config{Model: "m"}).Args(Request{}, "PROMPT")
-	has(t, "pi", args, "-p", "--no-session", "--tools read,grep,find,ls", "--no-extensions", "--no-skills", "--no-mcp", "--no-context-files", "--no-approve", "--model m")
-	if args[len(args)-1] != "PROMPT" || args[len(args)-2] != "--" {
-		t.Error("prompt must follow --")
+	args := NewPi(Config{Model: "m"}).Args(Request{}, "/g.ts")
+	has(t, "pi", args, "-p", "--no-session", "-e /g.ts", "--tools read,grep,find,ls", "--no-extensions", "--no-skills", "--no-mcp", "--no-context-files", "--no-approve", "--model m")
+	if slices.Contains(args, "--") {
+		t.Error("prompt must come on stdin, not argv")
 	}
 }
 
@@ -56,7 +56,7 @@ func TestOpenCodePermissionsDenyEverythingButReads(t *testing.T) {
 		}
 	}
 	o := NewOpenCode(Config{Model: "p/m"})
-	has(t, "opencode", o.Args(Request{Dir: "/w"}, "P"), "run", "--format json", "--dir /w", "--model p/m")
+	has(t, "opencode", o.Args(Request{Dir: "/w"}, "/t/task.md"), "run", "--format json", "--dir /w", "--file /t/task.md", "--model p/m")
 	env := strings.Join(o.Env(), " ")
 	for _, w := range []string{"OPENCODE_DISABLE_PROJECT_CONFIG=1", "OPENCODE_PURE=1", "OPENCODE_DISABLE_CLAUDE_CODE=1"} {
 		if !strings.Contains(env, w) {

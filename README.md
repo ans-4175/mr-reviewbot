@@ -5,7 +5,7 @@ A small Go CLI that reviews merge requests (GitLab) and pull requests (GitHub) a
 It does not ship its own credentials or model client. It drives the tools already on the host:
 
 - **Forge CLI** for API and git access: `glab` (GitLab, incl. self-hosted) or `gh` (GitHub, incl. Enterprise).
-- **Coding agent CLI** as the reviewer, locked to read-only tools: `claude` (Claude Code); adapters for `codex`, `opencode` and `pi` are included and run only where the isolation probe passes (status per agent in [SETUP.md](SETUP.md#supported-forges-and-agents)).
+- **Coding agent CLI** as the reviewer, locked to read-only tools: `claude` (Claude Code) or `pi`; adapters for `codex` and `opencode` are included and run only where the isolation probe passes (status per agent in [SETUP.md](SETUP.md#supported-forges-and-agents)).
 - **Scheduler** for the poll bot: launchd on macOS, a systemd user timer on Linux, every `poll_interval_minutes` (default 30).
 
 Setup is in [SETUP.md](SETUP.md). The short version:

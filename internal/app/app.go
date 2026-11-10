@@ -68,8 +68,9 @@ type env struct {
 	out   io.Writer
 	err   io.Writer
 	json  bool
-	// isolated: the agent passed the probe in this process (see ensureIsolated).
+	// isolated / isoErr: the probe result for this process (see ensureIsolated).
 	isolated bool
+	isoErr   error
 }
 
 func (e *env) logf(format string, a ...any) {
@@ -356,6 +357,11 @@ func (e *env) drain(jobs []*queue.Job, limit int, dry bool) int {
 			break
 		}
 		res, err := e.process(j.Project, j.IID, j.Force, j.Source == "manual", dry)
+		if errors.Is(err, errNotIsolated) {
+			e.logf("%v; %d job(s) stay queued untouched", err, len(jobs)-i)
+			failed = true
+			break
+		}
 		if err != nil {
 			e.logf("FAILED %s!%d: %v", j.Project, j.IID, err)
 			res = Result{Project: j.Project, IID: j.IID, Status: "failed", Error: err.Error()}

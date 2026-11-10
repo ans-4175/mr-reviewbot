@@ -215,11 +215,18 @@ func TestIsolationProbeRunsOnceThenStamps(t *testing.T) {
 func TestLeakyAgentIsRefusedAndJobStaysQueued(t *testing.T) {
 	e, ff, fa, _, _ := setup(t, "en")
 	fa.leaky = true
-	if code := e.poll(false, 5); code != 1 {
-		t.Fatalf("want exit 1, got %d", code)
+	for run := 0; run < 4; run++ { // more runs than MaxAttempts: a host problem must never park an MR
+		e.isolated, e.isoErr = false, nil // each run is a new process
+		if code := e.poll(false, 5); code != 1 {
+			t.Fatalf("run %d: want exit 1, got %d", run, code)
+		}
 	}
 	pending, _ := e.q.Pending()
-	if len(ff.notes) != 0 || len(fa.tasks) != 0 || len(pending) != 1 || !strings.Contains(pending[0].LastError, "isolation") {
-		t.Errorf("leaky agent must never review: notes=%d tasks=%d pending=%+v", len(ff.notes), len(fa.tasks), pending)
+	if len(ff.notes) != 0 || len(fa.tasks) != 0 || len(pending) != 1 || pending[0].Attempts != 0 || len(e.q.FailedJobs()) != 0 {
+		t.Errorf("leaky agent must never review nor charge the job: notes=%d tasks=%d pending=%+v failed=%d",
+			len(ff.notes), len(fa.tasks), pending, len(e.q.FailedJobs()))
+	}
+	if fa.probes != 4 {
+		t.Errorf("want one probe per run, got %d", fa.probes)
 	}
 }

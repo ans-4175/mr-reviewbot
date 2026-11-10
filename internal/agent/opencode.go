@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -36,12 +38,13 @@ func (o *OpenCode) Env() []string {
 	}
 }
 
-func (o *OpenCode) Args(req Request, prompt string) []string {
-	args := []string{"run", "--format", "json", "--dir", req.Dir}
+// The prompt goes in an attached file: as one argv string it would hit Linux's 128 KiB per-argument limit.
+func (o *OpenCode) Args(req Request, promptFile string) []string {
+	args := []string{"run", "--format", "json", "--dir", req.Dir, "--file", promptFile}
 	if o.cfg.Model != "" {
 		args = append(args, "--model", o.cfg.Model)
 	}
-	return append(args, prompt)
+	return append(args, "Follow the instructions in the attached file and answer with the JSON object only.")
 }
 
 func (o *OpenCode) Review(ctx context.Context, req Request) (*Output, error) {
@@ -49,7 +52,16 @@ func (o *OpenCode) Review(ctx context.Context, req Request) (*Output, error) {
 	if err != nil {
 		return nil, err
 	}
-	out, err := run(ctx, o.cfg.Timeout, req.Dir, o.Env(), nil, o.cfg.Command, o.Args(req, prompt)...)
+	tmp, err := os.MkdirTemp("", "reviewbot-opencode-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(tmp)
+	promptFile := filepath.Join(tmp, "review-task.md")
+	if err := os.WriteFile(promptFile, []byte(prompt), 0o644); err != nil {
+		return nil, err
+	}
+	out, err := run(ctx, o.cfg.Timeout, req.Dir, o.Env(), nil, o.cfg.Command, o.Args(req, promptFile)...)
 	if err != nil {
 		return nil, err
 	}

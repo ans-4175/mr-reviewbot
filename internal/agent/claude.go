@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // Claude runs `claude -p` with only Read/Grep/Glob and without the repo's own settings, hooks or CLAUDE.md.
@@ -23,7 +24,7 @@ func (c *Claude) Version(ctx context.Context) (string, error) { return version(c
 
 func (c *Claude) Args(req Request) []string {
 	args := []string{
-		"-p", req.Task,
+		"-p", // the prompt comes on stdin: as one argv string it would hit Linux's 128 KiB per-argument limit
 		"--output-format", "json",
 		"--json-schema", req.Schema,
 		"--append-system-prompt-file", req.SystemFile,
@@ -43,7 +44,7 @@ func (c *Claude) Args(req Request) []string {
 }
 
 func (c *Claude) Review(ctx context.Context, req Request) (*Output, error) {
-	out, err := run(ctx, c.cfg.Timeout, req.Dir, []string{"CLAUDE_CODE_DISABLE_CLAUDE_MDS=1"}, nil, c.cfg.Command, c.Args(req)...)
+	out, err := run(ctx, c.cfg.Timeout, req.Dir, []string{"CLAUDE_CODE_DISABLE_CLAUDE_MDS=1"}, strings.NewReader(req.Task), c.cfg.Command, c.Args(req)...)
 	if err != nil {
 		return nil, err
 	}

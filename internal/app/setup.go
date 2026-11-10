@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -143,7 +144,7 @@ func (e *env) doctor(probe bool) int {
 	if probe {
 		err := e.probe(ctx)
 		if err == nil {
-			err = e.markIsolated(ctx) // the next review need not probe again
+			e.markIsolated(ctx) // the next review need not probe again
 		}
 		add(e.agent.Name()+" isolation", err, "reads the checkout, cannot read outside it")
 	}
@@ -167,25 +168,33 @@ func (e *env) doctor(probe bool) int {
 
 const probeTTL = 24 * time.Hour
 
-// ensureIsolated re-runs the probe when the agent, its version or the model changes, and at least daily,
-// because isolation can drift with upgrades and user settings. A failed probe blocks every review.
+// errNotIsolated is a host problem, not an MR problem: drain stops the run without charging the jobs.
+var errNotIsolated = errors.New("refusing to review")
+
+// ensureIsolated re-runs the probe when the agent, its version or the model changes, and at least daily
+// (user-level agent settings are only caught by the daily re-check). A failed probe blocks every review.
 func (e *env) ensureIsolated(ctx context.Context) error {
 	if e.isolated {
 		return nil
 	}
+	if e.isoErr != nil {
+		return e.isoErr // probe once per process, even when it fails
+	}
 	stamp, v, err := e.probeStamp(ctx)
+	if err == nil {
+		if fi, statErr := os.Stat(stamp); statErr == nil && time.Since(fi.ModTime()) < probeTTL {
+			e.isolated = true
+			return nil
+		}
+		e.logf("checking %s isolation (%s)", e.agent.Name(), v)
+		err = e.probe(ctx)
+	}
 	if err != nil {
-		return err
+		e.isoErr = fmt.Errorf("%w: %s isolation check failed: %v", errNotIsolated, e.agent.Name(), err)
+		return e.isoErr
 	}
-	if fi, err := os.Stat(stamp); err == nil && time.Since(fi.ModTime()) < probeTTL {
-		e.isolated = true
-		return nil
-	}
-	e.logf("checking %s isolation (%s)", e.agent.Name(), v)
-	if err := e.probe(ctx); err != nil {
-		return fmt.Errorf("refusing to review: %s isolation check failed: %w", e.agent.Name(), err)
-	}
-	return e.markIsolated(ctx)
+	e.markIsolated(ctx)
+	return nil
 }
 
 // probeStamp names the stamp after everything that can change the agent's behaviour.
@@ -198,16 +207,19 @@ func (e *env) probeStamp(ctx context.Context) (string, string, error) {
 	return e.stateDir("probe", hex.EncodeToString(sum[:8])+".ok"), v, nil
 }
 
-func (e *env) markIsolated(ctx context.Context) error {
-	stamp, v, err := e.probeStamp(ctx)
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(stamp), 0o755); err != nil {
-		return err
-	}
+// markIsolated records a passed probe; a stamp that can't be written only costs a re-probe next run.
+func (e *env) markIsolated(ctx context.Context) {
 	e.isolated = true
-	return os.WriteFile(stamp, []byte(v+"\n"), 0o644)
+	stamp, v, err := e.probeStamp(ctx)
+	if err == nil {
+		err = os.MkdirAll(filepath.Dir(stamp), 0o755)
+	}
+	if err == nil {
+		err = os.WriteFile(stamp, []byte(v+"\n"), 0o644)
+	}
+	if err != nil {
+		e.logf("warning: could not save the isolation stamp: %v", err)
+	}
 }
 
 // probe runs the agent once on a scratch checkout: it must read a file inside and fail to read one beside it.

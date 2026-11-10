@@ -17,6 +17,7 @@ type GitHub struct {
 	Host    string
 	Command string
 	user    *User
+	urlRe   *regexp.Regexp
 }
 
 func NewGitHub(host, command string) *GitHub {
@@ -26,7 +27,7 @@ func NewGitHub(host, command string) *GitHub {
 	if command == "" {
 		command = "gh"
 	}
-	return &GitHub{Host: host, Command: command}
+	return &GitHub{Host: host, Command: command, urlRe: regexp.MustCompile(`^https?://` + regexp.QuoteMeta(host) + `/([^/]+/[^/]+)/pull/(\d+)`)}
 }
 
 func (g *GitHub) Name() string { return "github" }
@@ -176,8 +177,7 @@ func (g *GitHub) CredentialHelper() string { return "!" + g.Command + " auth git
 func (g *GitHub) HeadRef(iid int) string { return fmt.Sprintf("refs/pull/%d/head", iid) }
 
 func (g *GitHub) ParseURL(url string) (string, int, bool) {
-	re := regexp.MustCompile(`^https?://` + regexp.QuoteMeta(g.Host) + `/([^/]+/[^/]+)/pull/(\d+)`)
-	m := re.FindStringSubmatch(strings.TrimSpace(url))
+	m := g.urlRe.FindStringSubmatch(strings.TrimSpace(url))
 	if m == nil {
 		return "", 0, false
 	}

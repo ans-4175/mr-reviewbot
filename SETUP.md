@@ -16,9 +16,9 @@ You can set up either one, or both on the same host.
 | **GitLab** via `glab` (gitlab.com or self-hosted) | supported, in production use |
 | **GitHub** via `gh` (github.com or Enterprise) | supported; API and git access verified |
 | **Claude Code** (`claude`) | supported; isolation probe passes |
-| **Codex** (`codex`) | adapter ready (read-only sandbox, output schema). Not yet verified: on the test host Codex's own exec tool timed out |
+| **pi** (`pi`) | supported; pi's tools have no path restriction, so reviewbot loads a guard extension that blocks any read/grep/find/ls outside the checkout (symlinks resolved, fails closed); isolation probe passes |
+| **Codex** (`codex`) | adapter ready (read-only sandbox, output schema). Not yet verified: on the test host Codex's own exec tool timed out. Note that Codex's read-only sandbox blocks writes and network, not reads, so the probe may refuse it |
 | **opencode** (`opencode`) | adapter ready (permissions deny everything but reads, `external_directory` denied). Not yet verified on a real host |
-| **pi** (`pi`) | adapter ready, but pi has no path restriction: the probe shows it can read outside the checkout, so reviewbot refuses to review with it |
 
 Whatever agent you pick, reviewbot runs the isolation probe before the first review and again whenever the agent's version or model changes (and at least daily). If the agent can read outside the MR checkout, no review runs and the job stays queued. "Adapter ready" means it will work as soon as the probe passes on your host.
 
