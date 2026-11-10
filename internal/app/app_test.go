@@ -165,6 +165,20 @@ func TestPollReviewsPostsThenSkipsUntilNewPush(t *testing.T) {
 	}
 }
 
+func TestReviewerSeesHumanDiscussionButNotBotOrSystemNotes(t *testing.T) {
+	e, ff, fa, _, logs := setup(t, "en")
+	ff.notes = []forge.Note{
+		{ID: 1, Body: "merged main into feat", System: true, Author: forge.User{ID: 1}},
+		{ID: 2, Body: "AUTHOR-EXPLAINS: kept it simple on purpose", Author: forge.User{ID: 1, Username: "dev"}},
+	}
+	if code := e.poll(false, 5); code != 0 {
+		t.Fatalf("exit %d\n%s", code, logs)
+	}
+	if !strings.Contains(fa.tasks[0], "AUTHOR-EXPLAINS") || strings.Contains(fa.tasks[0], "merged main into feat") {
+		t.Error("discussion must include people's comments and skip system notes")
+	}
+}
+
 func TestIndonesianComment(t *testing.T) {
 	e, ff, fa, _, logs := setup(t, "id")
 	if code := e.poll(false, 5); code != 0 {

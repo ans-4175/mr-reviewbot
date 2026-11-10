@@ -451,7 +451,7 @@ func (e *env) process(project string, iid int, force, manual, dry bool) (Result,
 	if err := os.WriteFile(sysFile, []byte(sys), 0o644); err != nil {
 		return res, err
 	}
-	task := review.BuildTaskPrompt(mr, plan, conv.String(), lastBody, repo.Language)
+	task := review.BuildTaskPrompt(mr, plan, conv.String(), lastBody, review.FormatDiscussion(notes, bot.ID), repo.Language)
 
 	stem := fmt.Sprintf("%s!%d", strings.ReplaceAll(project, "/", "__"), iid)
 	work := e.stateDir("work", stem)

@@ -1,9 +1,11 @@
 package review
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 	"unicode/utf8"
 
 	"github.com/ans-4175/mr-reviewbot/internal/forge"
@@ -72,11 +74,39 @@ func TestTaskPrompt(t *testing.T) {
 	plan := &gitops.Plan{Mode: "incremental", FromSHA: strings.Repeat("a", 40), ToSHA: strings.Repeat("b", 40),
 		Files: []string{"x.go"}, Diff: "+hi", Truncated: true, Omitted: []string{"big.go"}}
 	for lang, name := range map[string]string{"en": "English", "id": "Bahasa Indonesia"} {
-		p := BuildTaskPrompt(mr, plan, "", "OLD-REVIEW", lang)
-		for _, want := range []string{"untrusted data", "big.go", "incremental", name, "OLD-REVIEW", "against the code at head"} {
+		p := BuildTaskPrompt(mr, plan, "", "OLD-REVIEW", "- @dev:\n  WHY-NOTE\n", lang)
+		for _, want := range []string{"untrusted data", "big.go", "incremental", name, "OLD-REVIEW", "against the code at head", "Recent discussion", "WHY-NOTE"} {
 			if !strings.Contains(p, want) {
 				t.Errorf("%s prompt missing %q", lang, want)
 			}
 		}
+	}
+}
+
+func TestFormatDiscussion(t *testing.T) {
+	line := 12
+	day := time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC)
+	notes := []forge.Note{
+		{Body: "merged main", System: true, Author: forge.User{ID: 1}},
+		{Body: "old bot review", Author: forge.User{ID: 42, Username: "bot"}},
+		{Body: "kept the loop on purpose:\nfaster for small n", Author: forge.User{ID: 1, Username: "dev"}, CreatedAt: day,
+			Position: &forge.Position{NewPath: "a.go", NewLine: &line}},
+		{Body: "  ", Author: forge.User{ID: 2, Username: "rev"}},
+	}
+	got := FormatDiscussion(notes, 42)
+	want := "- @dev 2026-11-10 on a.go:12:\n  kept the loop on purpose:\n  faster for small n\n"
+	if got != want {
+		t.Errorf("got %q\nwant %q", got, want)
+	}
+	var many []forge.Note
+	for i := 0; i < 30; i++ {
+		many = append(many, forge.Note{Body: fmt.Sprintf("c%02d", i), Author: forge.User{ID: 1, Username: "dev"}})
+	}
+	got = FormatDiscussion(many, 42)
+	if strings.Contains(got, "c09") || !strings.Contains(got, "c10") || !strings.Contains(got, "c29") {
+		t.Errorf("want the newest 20 only: %s", got)
+	}
+	if FormatDiscussion(nil, 42) != "" {
+		t.Error("no notes, no discussion")
 	}
 }

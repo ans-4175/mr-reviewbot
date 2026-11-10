@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -146,19 +147,41 @@ func (g *GitHub) MR(project string, iid int) (MR, error) {
 	return p.toMR(), err
 }
 
+type ghComment struct {
+	ID           int64     `json:"id"`
+	Body         string    `json:"body"`
+	User         ghUser    `json:"user"`
+	CreatedAt    time.Time `json:"created_at"`
+	Path         string    `json:"path"`
+	Line         *int      `json:"line"`
+	OriginalLine *int      `json:"original_line"`
+}
+
+func (c ghComment) toNote() Note {
+	n := Note{ID: c.ID, Body: c.Body, Author: User{ID: c.User.ID, Username: c.User.Login}, CreatedAt: c.CreatedAt}
+	if c.Path != "" {
+		line := c.Line
+		if line == nil {
+			line = c.OriginalLine // the line moved since the comment
+		}
+		n.Position = &Position{NewPath: c.Path, NewLine: line}
+	}
+	return n
+}
+
+// Notes merges the conversation (issue comments, where the bot posts) with inline review comments, oldest first.
 func (g *GitHub) Notes(project string, iid int) ([]Note, error) {
-	comments, err := ghGetAll[struct {
-		ID   int64  `json:"id"`
-		Body string `json:"body"`
-		User ghUser `json:"user"`
-	}](g, fmt.Sprintf("repos/%s/issues/%d/comments", project, iid))
-	if err != nil {
-		return nil, err
+	var notes []Note
+	for _, endpoint := range []string{"repos/%s/issues/%d/comments", "repos/%s/pulls/%d/comments"} {
+		comments, err := ghGetAll[ghComment](g, fmt.Sprintf(endpoint, project, iid))
+		if err != nil {
+			return nil, err
+		}
+		for _, c := range comments {
+			notes = append(notes, c.toNote())
+		}
 	}
-	notes := make([]Note, 0, len(comments))
-	for _, c := range comments {
-		notes = append(notes, Note{ID: c.ID, Body: c.Body, Author: User{ID: c.User.ID, Username: c.User.Login}})
-	}
+	sort.SliceStable(notes, func(i, j int) bool { return notes[i].CreatedAt.Before(notes[j].CreatedAt) })
 	return notes, nil
 }
 

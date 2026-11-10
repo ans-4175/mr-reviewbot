@@ -13,12 +13,12 @@ You can set up either one, or both on the same host.
 
 | | Status |
 |---|---|
-| **GitLab** via `glab` (gitlab.com or self-hosted) | supported, in production use |
-| **GitHub** via `gh` (github.com or Enterprise) | supported; API and git access verified |
+| **GitLab** via `glab` (gitlab.com or self-hosted) | supported, in daily use |
+| **GitHub** via `gh` (github.com or Enterprise) | supported; reviews this repo's own PRs |
 | **Claude Code** (`claude`) | supported; isolation probe passes |
-| **pi** (`pi`) | supported; pi's tools have no path restriction, so reviewbot loads a guard extension that blocks any read/grep/find/ls outside the checkout (symlinks resolved, fails closed); isolation probe passes |
-| **Codex** (`codex`) | adapter ready (read-only sandbox, output schema). Not yet verified: on the test host Codex's own exec tool timed out. Note that Codex's read-only sandbox blocks writes and network, not reads, so the probe may refuse it |
-| **opencode** (`opencode`) | adapter ready (permissions deny everything but reads, `external_directory` denied). Not yet verified on a real host |
+| **pi** (`pi`) | supported; pi's tools have no path restriction of their own, so reviewbot loads a bundled guard extension that blocks any read/grep/find/ls outside the checkout (fails closed); isolation probe passes |
+| **Codex** (`codex`) | adapter ready, not yet verified on a real host ([#2](https://github.com/ans-4175/mr-reviewbot/issues/2)). Codex's read-only sandbox blocks writes and network, not reads, so the probe may refuse it |
+| **opencode** (`opencode`) | adapter ready, not yet verified on a real host ([#3](https://github.com/ans-4175/mr-reviewbot/issues/3)) |
 
 Whatever agent you pick, reviewbot runs the isolation probe before the first review and again whenever the agent's version or model changes (and at least daily). If the agent can read outside the MR checkout, no review runs and the job stays queued. "Adapter ready" means it will work as soon as the probe passes on your host.
 

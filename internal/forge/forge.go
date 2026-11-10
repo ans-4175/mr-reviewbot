@@ -26,11 +26,19 @@ type MR struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+// Note is a comment on the MR, oldest first. Position is set for comments on a line of the diff.
 type Note struct {
-	ID     int64  `json:"id"`
-	Body   string `json:"body"`
-	System bool   `json:"system"`
-	Author User   `json:"author"`
+	ID        int64     `json:"id"`
+	Body      string    `json:"body"`
+	System    bool      `json:"system"`
+	Author    User      `json:"author"`
+	CreatedAt time.Time `json:"created_at"`
+	Position  *Position `json:"position,omitempty"`
+}
+
+type Position struct {
+	NewPath string `json:"new_path"`
+	NewLine *int   `json:"new_line"`
 }
 
 type Forge interface {

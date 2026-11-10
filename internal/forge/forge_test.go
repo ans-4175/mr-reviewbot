@@ -53,3 +53,18 @@ func TestNewRejectsUnknown(t *testing.T) {
 		t.Error("expected error")
 	}
 }
+
+func TestGitHubReviewCommentKeepsItsLine(t *testing.T) {
+	var c ghComment
+	raw := `{"id":3,"body":"why?","user":{"id":5,"login":"rev"},"created_at":"2026-11-10T10:00:00Z","path":"a.go","line":null,"original_line":7}`
+	if err := json.Unmarshal([]byte(raw), &c); err != nil {
+		t.Fatal(err)
+	}
+	n := c.toNote()
+	if n.Position == nil || n.Position.NewPath != "a.go" || *n.Position.NewLine != 7 || n.Author.Username != "rev" {
+		t.Errorf("got %+v", n)
+	}
+	if (ghComment{Body: "plain"}).toNote().Position != nil {
+		t.Error("a conversation comment has no position")
+	}
+}
