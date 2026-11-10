@@ -218,7 +218,8 @@ func Worktree(gd, head, dest string) (func(), error) {
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return nil, err
 	}
-	if _, err := mustGit(gd, "worktree", "add", "--detach", "--force", dest, head); err != nil {
+	// Symlinks from the MR become plain files holding the target path, so no agent can follow one out of the checkout.
+	if _, err := mustGit(gd, "-c", "core.symlinks=false", "worktree", "add", "--detach", "--force", dest, head); err != nil {
 		return nil, err
 	}
 	return func() {
