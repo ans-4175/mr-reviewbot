@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -29,14 +31,15 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	path := fs.String("config", config.DefaultPath(), "where to write the config")
-	forgeType := fs.String("forge", "gitlab", "code host: gitlab")
-	host := fs.String("host", "gitlab.com", "forge hostname (self-hosted GitLab: git.example.org)")
+	forgeType := fs.String("forge", "gitlab", "code host: gitlab | github")
+	host := fs.String("host", "", "forge hostname (default gitlab.com / github.com; set it for self-hosted GitLab or GitHub Enterprise)")
 	forgeCmd := fs.String("forge-command", "", "forge CLI binary (default: glab)")
-	agentType := fs.String("agent", "claude", "reviewer agent: claude")
+	agentType := fs.String("agent", "claude", "reviewer agent: "+strings.Join(agent.Types, " | "))
 	agentCmd := fs.String("agent-command", "", "agent CLI binary (default: claude)")
 	model := fs.String("model", "", "agent model (empty = the agent's own default)")
 	language := fs.String("language", "en", "comment language: "+strings.Join(config.Languages, "|"))
 	maxPerRun := fs.Int("max-per-run", 5, "max reviews per poll run")
+	interval := fs.Int("poll-interval-minutes", 30, "minutes between the end of one scheduled run and the next")
 	overwrite := fs.Bool("force", false, "overwrite an existing config")
 	var repos multi
 	fs.Var(&repos, "repo", "group/project to review (repeatable)")
@@ -48,11 +51,15 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
+	if *host == "" {
+		*host = map[string]string{"gitlab": "gitlab.com", "github": "github.com"}[*forgeType]
+	}
 	raw := config.Raw{
-		Forge:     config.RawForge{Type: *forgeType, Host: *host, Command: *forgeCmd},
-		Agent:     config.RawAgent{Type: *agentType, Command: *agentCmd, Model: *model, MaxTurns: 40, TimeoutMinutes: 20},
-		MaxPerRun: maxPerRun,
-		Defaults:  config.Overrides{Language: language},
+		Forge:               config.RawForge{Type: *forgeType, Host: *host, Command: *forgeCmd},
+		Agent:               config.RawAgent{Type: *agentType, Command: *agentCmd, Model: *model, MaxTurns: 40, TimeoutMinutes: 20},
+		MaxPerRun:           maxPerRun,
+		PollIntervalMinutes: interval,
+		Defaults:            config.Overrides{Language: language},
 	}
 	for _, r := range repos {
 		raw.Repos = append(raw.Repos, config.RawRepo{Path: strings.TrimSuffix(strings.TrimSpace(r), "/")})
@@ -134,7 +141,11 @@ func (e *env) doctor(probe bool) int {
 		add("repo "+r.Path, err, fmt.Sprintf("api + git ok, %d open non-draft MR(s)", len(mrs)))
 	}
 	if probe {
-		add(e.agent.Name()+" isolation", e.probe(ctx), "reads the checkout, cannot read outside it")
+		err := e.probe(ctx)
+		if err == nil {
+			err = e.markIsolated(ctx) // the next review need not probe again
+		}
+		add(e.agent.Name()+" isolation", err, "reads the checkout, cannot read outside it")
 	}
 
 	failed := 0
@@ -152,6 +163,51 @@ func (e *env) doctor(probe bool) int {
 		return 1
 	}
 	return 0
+}
+
+const probeTTL = 24 * time.Hour
+
+// ensureIsolated re-runs the probe when the agent, its version or the model changes, and at least daily,
+// because isolation can drift with upgrades and user settings. A failed probe blocks every review.
+func (e *env) ensureIsolated(ctx context.Context) error {
+	if e.isolated {
+		return nil
+	}
+	stamp, v, err := e.probeStamp(ctx)
+	if err != nil {
+		return err
+	}
+	if fi, err := os.Stat(stamp); err == nil && time.Since(fi.ModTime()) < probeTTL {
+		e.isolated = true
+		return nil
+	}
+	e.logf("checking %s isolation (%s)", e.agent.Name(), v)
+	if err := e.probe(ctx); err != nil {
+		return fmt.Errorf("refusing to review: %s isolation check failed: %w", e.agent.Name(), err)
+	}
+	return e.markIsolated(ctx)
+}
+
+// probeStamp names the stamp after everything that can change the agent's behaviour.
+func (e *env) probeStamp(ctx context.Context) (string, string, error) {
+	v, err := e.agent.Version(ctx)
+	if err != nil {
+		return "", "", err
+	}
+	sum := sha256.Sum256([]byte(strings.Join([]string{e.agent.Name(), v, e.cfg.Agent.Command, e.cfg.Agent.Model}, "\x00")))
+	return e.stateDir("probe", hex.EncodeToString(sum[:8])+".ok"), v, nil
+}
+
+func (e *env) markIsolated(ctx context.Context) error {
+	stamp, v, err := e.probeStamp(ctx)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(stamp), 0o755); err != nil {
+		return err
+	}
+	e.isolated = true
+	return os.WriteFile(stamp, []byte(v+"\n"), 0o644)
 }
 
 // probe runs the agent once on a scratch checkout: it must read a file inside and fail to read one beside it.
@@ -172,9 +228,9 @@ func (e *env) probe(ctx context.Context) error {
 	sys := filepath.Join(root, "system.md")
 	_ = os.WriteFile(sys, []byte("You are an isolation probe. Return only JSON that matches the schema."), 0o644)
 
-	task := fmt.Sprintf("Read %s, %s and %s. Put the exact contents of every file you could read into `summary`, "+
-		"verdict safe_to_merge, verdict_reason \"probe\", empty findings, steering_prompt \"-\".",
-		"inside.txt", "link.txt", filepath.Join(root, "outside.txt"))
+	task := fmt.Sprintf("Read inside.txt, link.txt, ../outside.txt and %s. Put the exact contents of every file you could read into `summary`, "+
+		"verdict safe_to_merge, verdict_reason \"probe\", empty findings, empty resolved_since_last, coverage_notes \"-\", steering_prompt \"-\".",
+		filepath.Join(root, "outside.txt"))
 	out, err := e.agent.Review(ctx, agent.Request{Task: task, SystemFile: sys, Schema: review.Schema, Dir: work})
 	if err != nil {
 		return err

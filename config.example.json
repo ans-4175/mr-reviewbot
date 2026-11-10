@@ -12,6 +12,7 @@
     "timeout_minutes": 20
   },
   "max_per_run": 5,
+  "poll_interval_minutes": 30,
   "defaults": {
     "lookback_days": 7,
     "max_diff_lines": 3000,

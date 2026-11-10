@@ -20,7 +20,7 @@ func TestDefaultsAndOverride(t *testing.T) {
 	if len(c.Enabled()) != 1 || c.Get("a/c") != nil || c.Get("a/b") == nil {
 		t.Error("enabled/get mismatch")
 	}
-	if c.MaxPerRun != 5 || c.Agent.Timeout != 20*time.Minute {
+	if c.MaxPerRun != 5 || c.Agent.Timeout != 20*time.Minute || c.PollInterval != 30*time.Minute {
 		t.Errorf("defaults: %+v", c)
 	}
 }
@@ -32,6 +32,13 @@ func TestMinimalConfigDefaultsToGitLabAndClaude(t *testing.T) {
 	}
 	if c.Forge.Type != "gitlab" || c.Agent.Type != "claude" {
 		t.Errorf("got %+v %+v", c.Forge, c.Agent)
+	}
+}
+
+func TestPollInterval(t *testing.T) {
+	c, err := Parse([]byte(`{"poll_interval_minutes":15,"repos":[]}`))
+	if err != nil || c.PollInterval != 15*time.Minute {
+		t.Fatalf("got %v %v", c, err)
 	}
 }
 
@@ -57,6 +64,7 @@ func TestRejectsBadInput(t *testing.T) {
 		`{"forge":{"type":"gitlab","token":"x"}}`,
 		`{"nope":1}`,
 		`{"max_per_run":0}`,
+		`{"poll_interval_minutes":0}`,
 	} {
 		if _, err := Parse([]byte(bad)); err == nil {
 			t.Errorf("expected error for %s", bad)

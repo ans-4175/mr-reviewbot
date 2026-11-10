@@ -25,6 +25,13 @@ func TestInitWritesValidConfigAndRefusesOverwrite(t *testing.T) {
 	if len(c.Repos) != 2 || c.Repos[1].Path != "acme/web" || c.Repos[0].Language != "id" || c.Agent.Model != "opus" || c.Forge.Host != "gitlab.com" {
 		t.Errorf("got %+v", c)
 	}
+	gh := filepath.Join(filepath.Dir(path), "gh.json")
+	if runInit([]string{"--config", gh, "--forge", "github", "--agent", "codex", "--poll-interval-minutes", "10"}, &out, &errb) != 0 {
+		t.Fatal(errb.String())
+	}
+	if c, err := config.Load(gh); err != nil || c.Forge.Host != "github.com" || c.Agent.Type != "codex" || c.PollInterval != 10*time.Minute {
+		t.Errorf("github init: %+v %v", c, err)
+	}
 	if runInit([]string{"--config", path}, &out, &errb) != 2 {
 		t.Error("must refuse to overwrite without --force")
 	}
@@ -103,5 +110,24 @@ func TestSkillInstallLeavesSymlinkAlone(t *testing.T) {
 	var out, errb bytes.Buffer
 	if runSkill([]string{"install", dir}, &out, &errb) != 2 {
 		t.Error("must not write through a symlinked skill dir")
+	}
+}
+
+func TestServiceIntervalComesFromConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(path, []byte(`{"poll_interval_minutes":10,"repos":[]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errb bytes.Buffer
+	if code := runService([]string{"print", "--config", path, "--state", "/s", "--binary", "/b"}, &out, &errb); code != 0 {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if !strings.Contains(out.String(), "600") {
+		t.Errorf("config interval ignored:\n%s", out.String())
+	}
+	out.Reset()
+	runService([]string{"print", "--config", path, "--state", "/s", "--binary", "/b", "--interval", "45m"}, &out, &errb)
+	if !strings.Contains(out.String(), "2700") {
+		t.Errorf("--interval must override the config:\n%s", out.String())
 	}
 }

@@ -1,20 +1,22 @@
 # mr-reviewbot
 
-A small Go CLI that polls your merge requests and posts a read-only AI code review on each new push: a verdict, ranked findings, and a paste-ready prompt to steer the next agent iteration.
+A small Go CLI that reviews merge requests (GitLab) and pull requests (GitHub) and posts a read-only AI code review on each new push: a verdict, ranked findings, and a paste-ready prompt to steer the next agent iteration. Run it as a scheduled poll bot, on demand from a chat agent, or both.
 
 It does not ship its own credentials or model client. It drives the tools already on the host:
 
-- **Forge CLI** for API and git access: `glab` (GitLab, incl. self-hosted). GitHub via `gh` is planned.
-- **Coding agent CLI** as the reviewer, locked to read-only tools: `claude` (Claude Code). Codex and pi are planned.
-- **Scheduler**: launchd on macOS, a systemd user timer on Linux.
+- **Forge CLI** for API and git access: `glab` (GitLab, incl. self-hosted) or `gh` (GitHub, incl. Enterprise).
+- **Coding agent CLI** as the reviewer, locked to read-only tools: `claude` (Claude Code); adapters for `codex`, `opencode` and `pi` are included and run only where the isolation probe passes (status per agent in [SETUP.md](SETUP.md#supported-forges-and-agents)).
+- **Scheduler** for the poll bot: launchd on macOS, a systemd user timer on Linux, every `poll_interval_minutes` (default 30).
 
 Setup is in [SETUP.md](SETUP.md). The short version:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ans-4175/mr-reviewbot/main/scripts/install.sh | sh
-reviewbot init --repo your-group/your-project
+reviewbot init --repo your-group/your-project        # --forge github --agent codex ... as needed
 reviewbot doctor --probe
-reviewbot service install
+
+reviewbot service install                            # A. poll bot
+reviewbot skill install <your-chat-agent-skills-dir> # B. on-demand from chat
 ```
 
 ## What a review looks like
@@ -39,7 +41,7 @@ Verdicts: ✅ Safe to merge · 🟡 Needs changes · 🔴 Not safe to merge. Lev
 ## How it works
 
 ```
-scheduler (every 30 min)                 chat agent (skill review-mr)
+scheduler (poll_interval_minutes)        chat agent (skill review-mr)
         │                                          │
         ▼                                          ▼
    reviewbot poll                           reviewbot review <MR>
@@ -63,7 +65,8 @@ scheduler (every 30 min)                 chat agent (skill review-mr)
 - **The verdict can't be rosier than the findings.** Any must-fix → not safe; any fix → at least needs changes.
 - **Context first.** The reviewer gets the MR description, commits, `CLAUDE.md`/`AGENTS.md` from the target branch (as the only trusted conventions), and a full checkout to read around the diff.
 - **Review lenses.** The reviewer prompt embeds `code-review-and-quality`, `code-simplification` and `security-and-hardening` from [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) (MIT, pinned, see [NOTICE](NOTICE)).
-- **The 30 minutes count from the end of the previous run**, so slow rounds never overlap.
+- **The interval counts from the end of the previous run**, so slow rounds never overlap.
+- **Isolation is checked, not assumed.** Before reviewing, reviewbot runs a probe whenever the agent, its version or the model changes (and at least daily); an agent that can read outside the checkout never reviews.
 
 ## Commands
 
@@ -89,10 +92,11 @@ See [config.example.json](config.example.json). Unknown keys are rejected so a t
 
 | Key | Meaning |
 |---|---|
-| `forge.type` / `host` / `command` | `gitlab`, `gitlab.com` or your host, the CLI binary |
-| `agent.type` / `command` / `model` | `claude`, the CLI binary, model (empty = the agent's own default) |
+| `forge.type` / `host` / `command` | `gitlab` or `github`, the host (default gitlab.com / github.com), the CLI binary |
+| `agent.type` / `command` / `model` | `claude`, `codex`, `opencode` or `pi`, the CLI binary, model (empty = the agent's own default) |
 | `agent.max_turns` / `timeout_minutes` | per review, defaults 40 and 20 |
 | `max_per_run` | reviews per run (skips don't count); the rest wait for the next run, oldest first |
+| `poll_interval_minutes` | poll bot cadence (default 30), counted from the end of the previous run; re-run `service install` after changing it |
 | `defaults.*`, `repos[].*` | `lookback_days`, `max_diff_lines`, `language` (`en`/`id`), `skip_labels`, `skip_authors`, `target_branches` |
 
 ## Chat trigger (agent skill)
@@ -105,7 +109,7 @@ reviewbot skill install ~/.hermes/profiles/<profile>/skills
 
 ## Security
 
-- **The reviewer only reads.** Claude runs with `--tools Read,Grep,Glob`, no MCP servers, no slash commands, only user-level settings (the repo's own `.claude/settings` and hooks are ignored), and `CLAUDE.md` auto-loading disabled. `reviewbot doctor --probe` checks on your host that it can read the checkout but not a file (or symlink) outside it.
+- **The reviewer only reads, and that is probed.** Every adapter pins read-only settings, and reviewbot re-runs the isolation probe on every agent/version/model change before reviewing. Claude runs with `--tools Read,Grep,Glob`, no MCP servers, no slash commands, only user-level settings (the repo's own `.claude/settings` and hooks are ignored), and `CLAUDE.md` auto-loading disabled. `reviewbot doctor --probe` checks on your host that it can read the checkout but not a file (or symlink) outside it.
 - **The forge token never reaches the agent.** The binary posts the comment; the agent only returns JSON.
 - **MR content is untrusted.** The prompt forbids following instructions found in it and asks the reviewer to flag such attempts. This lowers the risk, it does not remove it: a crafted MR can still sway a verdict. Humans make the merge decision; the bot never approves or merges.
 - Comment lines starting with `/` are neutralized so GitLab does not run them as quick actions.

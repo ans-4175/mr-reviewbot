@@ -34,6 +34,8 @@ type Config struct {
 	Agent     agent.Config
 	Repos     []Repo
 	MaxPerRun int
+	// PollInterval is the gap between the end of one scheduled run and the start of the next.
+	PollInterval time.Duration
 }
 
 func (c *Config) Enabled() []Repo {
@@ -87,11 +89,12 @@ type RawRepo struct {
 
 // Raw is the on-disk shape; init writes it, Parse reads it.
 type Raw struct {
-	Forge     RawForge  `json:"forge"`
-	Agent     RawAgent  `json:"agent"`
-	MaxPerRun *int      `json:"max_per_run,omitempty"`
-	Defaults  Overrides `json:"defaults"`
-	Repos     []RawRepo `json:"repos"`
+	Forge               RawForge  `json:"forge"`
+	Agent               RawAgent  `json:"agent"`
+	MaxPerRun           *int      `json:"max_per_run,omitempty"`
+	PollIntervalMinutes *int      `json:"poll_interval_minutes,omitempty"`
+	Defaults            Overrides `json:"defaults"`
+	Repos               []RawRepo `json:"repos"`
 }
 
 func apply(dst *Repo, o Overrides) {
@@ -132,7 +135,13 @@ func Parse(data []byte) (*Config, error) {
 	if err := dec.Decode(&r); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
-	cfg := &Config{MaxPerRun: 5}
+	cfg := &Config{MaxPerRun: 5, PollInterval: 30 * time.Minute}
+	if r.PollIntervalMinutes != nil {
+		if *r.PollIntervalMinutes < 1 {
+			return nil, fmt.Errorf("poll_interval_minutes must be >= 1")
+		}
+		cfg.PollInterval = time.Duration(*r.PollIntervalMinutes) * time.Minute
+	}
 	if r.MaxPerRun != nil {
 		cfg.MaxPerRun = *r.MaxPerRun
 	}

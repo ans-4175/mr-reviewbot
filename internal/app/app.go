@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -26,7 +27,18 @@ import (
 	"github.com/ans-4175/mr-reviewbot/internal/state"
 )
 
-var Version = "dev"
+// Version is set by release builds; `go install` builds fall back to the module version.
+var Version = ""
+
+func version() string {
+	if Version != "" {
+		return Version
+	}
+	if bi, ok := debug.ReadBuildInfo(); ok && bi.Main.Version != "" && bi.Main.Version != "(devel)" {
+		return bi.Main.Version
+	}
+	return "dev"
+}
 
 const usage = `usage: reviewbot <command> [flags]
 
@@ -56,6 +68,8 @@ type env struct {
 	out   io.Writer
 	err   io.Writer
 	json  bool
+	// isolated: the agent passed the probe in this process (see ensureIsolated).
+	isolated bool
 }
 
 func (e *env) logf(format string, a ...any) {
@@ -115,7 +129,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	cmd, rest := args[0], args[1:]
 	switch cmd {
 	case "version", "--version":
-		fmt.Fprintln(stdout, Version)
+		fmt.Fprintln(stdout, version())
 		return 0
 	case "init":
 		return runInit(rest, stdout, stderr)
@@ -154,8 +168,8 @@ func Run(args []string, stdout, stderr io.Writer) int {
 
 	switch cmd {
 	case "validate":
-		fmt.Fprintf(stdout, "config ok: %s, forge=%s agent=%s, %d repo(s), %d enabled\n",
-			*cfgPath, e.cfg.Forge.Type, e.cfg.Agent.Type, len(e.cfg.Repos), len(e.cfg.Enabled()))
+		fmt.Fprintf(stdout, "config ok: %s, forge=%s agent=%s, %d repo(s), %d enabled, poll every %s (re-run `service install` after changing it)\n",
+			*cfgPath, e.cfg.Forge.Type, e.cfg.Agent.Type, len(e.cfg.Repos), len(e.cfg.Enabled()), e.cfg.PollInterval)
 		return 0
 	case "doctor":
 		return e.doctor(*probe)
@@ -395,6 +409,9 @@ func (e *env) process(project string, iid int, force, manual, dry bool) (Result,
 	if !d.Review {
 		res.Status, res.Reason = "skipped", d.Reason
 		return res, nil
+	}
+	if err := e.ensureIsolated(context.Background()); err != nil {
+		return res, err
 	}
 
 	head, target := mr.SHA, mr.TargetBranch

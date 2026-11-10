@@ -1,6 +1,6 @@
 ---
 name: review-mr
-description: Trigger a read-only code review of one merge request from the whitelisted repos via the reviewbot CLI. Use when someone asks to review, re-review, or check an MR/PR by URL or group/project!iid, e.g. from chat.
+description: Trigger a read-only code review of one merge request (GitLab) or pull request (GitHub) from the whitelisted repos via the reviewbot CLI. Use when someone asks to review, re-review, or check an MR/PR by URL, group/project!iid or owner/repo#number, e.g. from chat.
 ---
 
 # Review MR (reviewbot)
@@ -9,7 +9,7 @@ Runs `reviewbot` for one merge request. The reviewer only reads code (no test/li
 
 ## Steps
 
-1. Take the MR reference from the request. Accepted: the MR URL, `group/project!iid`, or a short repo name such as `api!357`. A bare id (`56`) is rejected when more than one repo is whitelisted; ask which repo.
+1. Take the MR/PR reference from the request. Accepted: the MR/PR URL, `group/project!iid` (GitLab), `owner/repo#12` (GitHub), or a short repo name such as `api!357` / `api#12`. A bare id (`56`) is rejected when more than one repo is whitelisted; ask which repo.
 2. Run:
    ```bash
    reviewbot review <MR> --json

@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	mrRefRe  = regexp.MustCompile(`^([\w.\-/]+)!(\d+)$`)
+	mrRefRe  = regexp.MustCompile(`^([\w.\-/]+)[!#](\d+)$`) // group/project!7 (GitLab) or owner/repo#7 (GitHub)
 	bareIDRe = regexp.MustCompile(`^!?(\d+)$`)
 )
 
@@ -33,7 +33,7 @@ func resolveProject(cfg *config.Config, name string) (string, error) {
 
 type urlParser func(string) (string, int, bool)
 
-// resolveRef accepts an MR URL, "group/project!iid", "name!iid", or a bare iid when only one repo is whitelisted.
+// resolveRef accepts an MR URL, "group/project!iid" or "owner/repo#iid", "name!iid", or a bare iid when only one repo is whitelisted.
 func resolveRef(cfg *config.Config, parseURL urlParser, ref string) (string, int, error) {
 	ref = strings.TrimSpace(ref)
 	var name string
