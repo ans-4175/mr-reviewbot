@@ -215,10 +215,12 @@ func runService(args []string, stdout, stderr io.Writer) int {
 				fmt.Fprintf(stdout, "%s is not loaded\n", s.Label)
 				return 1
 			}
+			seen := map[string]bool{}
 			for _, l := range strings.Split(string(out), "\n") {
 				t := strings.TrimSpace(l)
 				for _, k := range []string{"state =", "runs =", "last exit code =", "run interval =", "path ="} {
-					if strings.HasPrefix(t, k) {
+					if strings.HasPrefix(t, k) && !seen[k] { // nested sections repeat keys; the job's own come first
+						seen[k] = true
 						fmt.Fprintln(stdout, t)
 					}
 				}
